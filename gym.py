@@ -1,0 +1,115 @@
+import numpy as np
+
+
+class RobotEnv:
+
+    def __init__(self):
+        self.world = np.zeros((10, 10))
+        self.world[5, :] = 1
+        self.world[5,4]=0
+        self.world[5,5]=0
+
+        self.x = 1.0
+        self.y = 1.0
+        self.theta = 0.0
+        self.ray_step = 0.5
+        self.goal_x = 8
+        self.goal_y = 8
+        self.max_steps = 200
+        self.current_steps = 0
+
+    def reset(self):
+        self.current_steps = 0
+        self.x, self.y, self.theta = 1.0, 1.0, 0.0
+        return self.get_state()
+
+    def step(self, action):
+        self.current_steps += 1
+        old_distance = self.goal_distance()
+
+        if action == 1:
+            self.theta += 0.1
+        elif action == 2:
+            self.theta -= 0.1
+
+        self.x += np.cos(self.theta) * 0.3
+        self.y += np.sin(self.theta) * 0.3
+
+        reward = self.get_reward(old_distance)
+        done = self.is_done()
+
+        return self.get_state(), reward, done
+
+    def get_ray_angles(self):
+        return [self.theta, self.theta + 0.5, self.theta - 0.5]
+
+    def ray_distances(self, angle):
+        x, y = self.x, self.y
+        dx, dy = np.cos(angle), np.sin(angle)
+        dist = 0
+
+        while True:
+            x += dx * self.ray_step
+            y += dy * self.ray_step
+            dist += self.ray_step
+
+            ix, iy = int(x), int(y)
+
+            if ix < 0 or iy < 0 or ix >= 10 or iy >= 10:
+                break
+
+            if self.world[ix][iy] == 1:
+                break
+
+        return dist
+
+    def get_state(self):
+        angles = self.get_ray_angles()
+        rays = [self.ray_distances(a) for a in angles]
+
+        dx=self.goal_x-self.x
+        dy=self.goal_y-self.y
+
+        return np.array(
+            [
+                rays[0],
+                rays[1],
+                rays[2],
+                dx,
+                dy
+            ]
+        )
+         
+    
+
+    def is_collision(self):
+        ix, iy = int(self.x), int(self.y)
+
+        if ix < 0 or iy < 0 or ix >= 10 or iy >= 10:
+            return True
+
+        return self.world[ix][iy] == 1
+
+    def get_reward(self, old_distance):
+        new_distance = self.goal_distance()
+        progress= (old_distance - new_distance) 
+        reward=5*progress-0.05
+       
+        if self.is_goal_reached():
+            return 20
+
+        if self.is_collision():
+            return -20
+
+        return reward
+
+    def goal_distance(self):
+        dx = self.goal_x - self.x
+        dy = self.goal_y - self.y
+        return np.sqrt(dx ** 2 + dy ** 2)
+
+    def is_goal_reached(self):
+        return self.goal_distance() < 0.8
+
+    def is_done(self):
+        return self.is_goal_reached() or self.is_collision() or self.current_steps >= self.max_steps
