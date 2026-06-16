@@ -44,7 +44,7 @@ project-root/
 └── README.md                          # This file
 ```
 
-> If you want to keep your current filenames exactly, that’s fine—this structure is mainly about making what each file *does* obvious.
+
 
 ---
 
