@@ -1,78 +1,117 @@
-# Spatial_Preception
-Robot Learning: Supervised vs Reinforcement Learning Comparison
+#Learning Spatial Intelligence for Autonomous Navigation via Deep Reinforcement Learning with Structured Perception Modeling
 
-This repository explores and compares supervised learning and reinforcement learning (DQN) for autonomous robot obstacle avoidance using a custom simulation environment.
+1. Problem Definition
 
-1. Supervised Learning Pipeline
+This project investigates autonomous obstacle avoidance using two learning paradigms: supervised imitation learning and deep reinforcement learning (Deep Q-Network). The objective is to evaluate differences in generalization, stability, and learning efficiency under identical simulation constraints.
 
-Initially, a teacher-driven system was implemented in sim.py, where a pre-programmed rule-based controller generated optimal motor actions for obstacle avoidance. This teacher was used to collect structured datasets in CSV format containing:
+2. Repository Structure
+2.1 Supervised Learning Pipeline
+sim.py : Rule-based expert controller and environment simulator used to generate training trajectories
+dataset.csv : Collected dataset containing sensor-action mappings from expert policy
+databaseprocess.ipynb : Data preprocessing and normalization pipeline
+neuralnet.py : Feedforward neural network for behavior cloning
+train.ipynb : Training pipeline for supervised regression model
+model.pth : Saved weights of trained supervised model
+2.2 Reinforcement Learning Pipeline
+gym.py : Custom reinforcement learning environment with reward function and physics simulation
+deepqnetwork.py : Q-value approximation neural network
+reinforced_train.py : DQN training loop using epsilon-greedy exploration
+3. Supervised Learning Framework (Imitation Learning)
+3.1 Methodology
 
-Sensor inputs: left, right, front distances
-Outputs: Motor A and Motor B control values
-Files used:
-sim.py – simulation + teacher policy
-dataset.csv – collected training data
-neuralnet.py – supervised neural model
-train.ipynb – training pipeline
-model.pth – trained weights
-databaseprocess.ipynb – preprocessing
+A deterministic rule-based expert policy implemented in sim.py generates optimal control signals. These are used as labeled data for supervised learning.
 
-Observation: Supervised learning struggled to generalize beyond the teacher’s behavior and required large datasets, making it inefficient for dynamic adaptation.
+3.2 Dataset
 
-2. Reinforcement Learning (DQN) Pipeline
+Input features:
 
-A Deep Q-Network agent was implemented to learn directly through interaction with the environment.
+left sensor distance
+right sensor distance
+front sensor distance
+additional state variables depending on version
 
-Files used:
-gym.py – custom RL environment and reward system
-deepqnetwork.py – Q-value approximator neural network
-reinforced_train.py – training loop with epsilon-greedy policy
-Key techniques:
-Experience replay
-Target Q-value updates
-Epsilon-greedy exploration
-3. Observed Issues in RL Training
+Output:
 
-Despite convergence, the agent exhibits reward stagnation (~constant ~51 reward) due to:
+motor_A velocity
+motor_B velocity
 
-1. Reward plateau (flat optimization landscape)
+Dataset stored in dataset.csv.
 
-The agent converges to a stable policy where:
+3.3 Model
 
-E[R]≈constant
+A feedforward neural network is trained to minimize regression loss:
 
-No meaningful gradient exists between states, causing training to stall.
+loss = mean squared error between predicted_action and expert_action
 
-2. Vanishing TD error
+3.4 Limitation
 
-The temporal difference update:
+The model exhibits strong dependency on expert trajectories and fails under distributional shift due to absence of exploration mechanism.
 
-TD error = reward + gamma * max Q(next_state, next_action) - Q(current_state, action)
+4. Reinforcement Learning Framework (DQN)
+4.1 Learning Objective
 
-approaches zero, reducing learning updates and freezing Q-values.
+The agent learns a policy maximizing expected cumulative reward using Q-learning:
 
-3. Over-exploitation due to epsilon decay
+Q(s,a) = r + gamma * max(Q(s’,a’))
 
-Low epsilon values reduce exploration, locking the agent into suboptimal but stable policies.
+where:
 
-4. Local optimum convergence
+s is state
+a is action
+r is reward
+gamma is discount factor
+5. Reinforcement Learning Evolution
 
-The agent stabilizes in a “good enough” policy rather than discovering globally optimal behavior.
+This project contains two versions of DQN implementation.
 
-4. Future Improvements
+5.1 Version 1 (Baseline DQN)
+State Representation
+5-dimensional state vector
+limited environmental awareness
+Neural Network
+smaller architecture
+no advanced initialization
+Training Configuration
+epochs: ~2000
+loss function: mean squared error loss
+basic reward function
 
-This project is open for improvements and experimentation with advanced RL techniques such as:
+reward = 5 * progress - 0.05
 
-Proximal Policy Optimization (PPO)
-Soft Actor-Critic (SAC)
-Intrinsic curiosity-based exploration
-Reward shaping for dense feedback
-Noisy networks instead of epsilon-greedy
-5. Goal
+Issues Observed
+unstable convergence
+poor generalization
+reward stagnation
+high variance in Q-value updates
+5.2 Version 2 (Improved DQN System)
+State Representation
+6-dimensional state vector
+includes ray-based perception + goal direction + orientation
+Neural Network Improvements
+architecture: 6 → 128 → 128 → 128 → 64 → 3
+activation: Leaky ReLU (alpha = 0.01)
+weight initialization: Xavier initialization
+Environment Fixes
+corrected coordinate system from (x,y) indexing to (y,x) indexing
+improved spatial consistency in grid representation
+Reward Function Redesign
 
-The purpose of this project is to experimentally compare:
+reward = 2 * progress - 0.01
+goal reward = +10
+collision reward = -10
 
-Imitation learning (supervised teacher-based control)
-Reinforcement learning (self-discovered policies)
+where:
+progress = old_distance - new_distance
 
-and analyze their limitations in real-world robotic navigation tasks.
+Training Improvements
+epochs increased to 15000
+replay buffer size increased from 10000 to 50000
+loss function changed to Smooth L1 loss (Huber loss)
+warm-up threshold increased from 32 to 1000 samples
+Exploration Strategy
+
+epsilon updated as:
+
+epsilon = 0.999 * epsilon
+
+with minimum exploration bound applied.
