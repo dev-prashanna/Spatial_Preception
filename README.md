@@ -13,7 +13,7 @@ We compare:
 
 ---
 
-## Repository Structure (clean + easy to understand)
+## Repository Structure 
 
 ```text
 project-root/
