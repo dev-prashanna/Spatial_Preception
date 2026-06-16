@@ -1,117 +1,222 @@
-#Learning Spatial Intelligence for Autonomous Navigation via Deep Reinforcement Learning with Structured Perception Modeling
+## Learning Spatial Intelligence for Autonomous Navigation via Deep Reinforcement Learning with Structured Perception Modeling
 
-1. Problem Definition
+### Goal
+This project studies **autonomous obstacle avoidance** using two learning paradigms under the **same simulation constraints**:
 
-This project investigates autonomous obstacle avoidance using two learning paradigms: supervised imitation learning and deep reinforcement learning (Deep Q-Network). The objective is to evaluate differences in generalization, stability, and learning efficiency under identical simulation constraints.
+1. **Supervised Imitation Learning** (Behavior Cloning)
+2. **Deep Reinforcement Learning** using a **Deep Q-Network (DQN)**
 
-2. Repository Structure
-2.1 Supervised Learning Pipeline
-sim.py : Rule-based expert controller and environment simulator used to generate training trajectories
-dataset.csv : Collected dataset containing sensor-action mappings from expert policy
-databaseprocess.ipynb : Data preprocessing and normalization pipeline
-neuralnet.py : Feedforward neural network for behavior cloning
-train.ipynb : Training pipeline for supervised regression model
-model.pth : Saved weights of trained supervised model
-2.2 Reinforcement Learning Pipeline
-gym.py : Custom reinforcement learning environment with reward function and physics simulation
-deepqnetwork.py : Q-value approximation neural network
-reinforced_train.py : DQN training loop using epsilon-greedy exploration
-3. Supervised Learning Framework (Imitation Learning)
-3.1 Methodology
+We compare:
+- **Generalization**
+- **Stability**
+- **Learning efficiency**
 
-A deterministic rule-based expert policy implemented in sim.py generates optimal control signals. These are used as labeled data for supervised learning.
+---
 
-3.2 Dataset
+## Repository Structure (clean + easy to understand)
 
-Input features:
+```text
+project-root/
+├── data/
+│   ├── dataset.csv                      # Labeled expert sensor→action dataset
+│   └── (optional) dataset_notes.md
+│
+├── models/
+│   └── supervised/
+│       └── model.pth                  # Saved imitation model weights
+│
+├── src/
+│   ├── supervised/
+│   │   ├── sim.py                      # Expert controller + trajectory generation
+│   │   ├── datasetprocess.ipynb       # Preprocessing / normalization
+│   │   ├── neuralnet.py                # Feedforward model for behavior cloning
+│   │   └── train.ipynb               # Train imitation model
+│   │
+│   └── reinforcement/
+│       ├── gym.py                      # Custom RL environment (physics + reward)
+│       ├── deepqnetwork.py            # Q-network architecture
+│       ├── reinforced_train.py       # DQN training loop (epsilon-greedy)
+│       └── (optional) versioning.md
+│
+├── docs/
+│   └── project_overview.md            # Extra explanations / diagrams
+│
+└── README.md                          # This file
+```
 
-left sensor distance
-right sensor distance
-front sensor distance
-additional state variables depending on version
+> If you want to keep your current filenames exactly, that’s fine—this structure is mainly about making what each file *does* obvious.
 
-Output:
+---
 
-motor_A velocity
-motor_B velocity
+## 1. Problem Definition
 
-Dataset stored in dataset.csv.
+The task is to learn a policy that controls two motors to **avoid obstacles** using sensor observations.  
+We evaluate:
 
-3.3 Model
+- **Imitation learning**: learns directly from expert trajectories (no exploration)
+- **DQN**: learns by interacting with the environment (with exploration and reward-driven learning)
 
-A feedforward neural network is trained to minimize regression loss:
+---
 
-loss = mean squared error between predicted_action and expert_action
+## 2. Supervised Learning Framework (Imitation Learning)
 
-3.4 Limitation
+### 2.1 Methodology
+A deterministic **rule-based expert controller** in `sim.py` generates training trajectories.
 
-The model exhibits strong dependency on expert trajectories and fails under distributional shift due to absence of exploration mechanism.
+These expert trajectories are converted into a dataset:
+- **Inputs**: sensor readings (+ optional state variables depending on version)
+- **Outputs**: motor commands produced by the expert
 
-4. Reinforcement Learning Framework (DQN)
-4.1 Learning Objective
+Then a feedforward neural network is trained to regress expert actions.
 
-The agent learns a policy maximizing expected cumulative reward using Q-learning:
+### 2.2 Dataset
 
-Q(s,a) = r + gamma * max(Q(s’,a’))
+**Inputs (typical)**
+- left sensor distance
+- right sensor distance
+- front sensor distance
+- additional state variables depending on version
 
-where:
+**Outputs**
+- `motor_A` velocity
+- `motor_B` velocity
 
-s is state
-a is action
-r is reward
-gamma is discount factor
-5. Reinforcement Learning Evolution
+Dataset file:
+- `data/dataset.csv`
 
-This project contains two versions of DQN implementation.
+### 2.3 Model
+A feedforward neural network trained with **Mean Squared Error (MSE)**:
 
-5.1 Version 1 (Baseline DQN)
-State Representation
-5-dimensional state vector
-limited environmental awareness
-Neural Network
-smaller architecture
-no advanced initialization
-Training Configuration
-epochs: ~2000
-loss function: mean squared error loss
-basic reward function
 
+### 2.4 Limitation
+Imitation learning depends heavily on the distribution of expert trajectories.
+When the robot encounters states not covered by expert data (**distribution shift**), the model may fail because it has **no exploration mechanism**.
+
+---
+
+## 3. Reinforcement Learning Framework (DQN)
+
+### 3.1 Learning Objective
+The agent learns a policy that maximizes expected cumulative reward using Q-learning:
+
+
+Where:
+- \(s\): state
+- \(a\): action
+- \(r\): reward
+- \(\gamma\): discount factor
+
+---
+
+## 4. DQN Evolution (Two Versions)
+
+You currently have two implementations. The differences matter for comparison, so they’re documented clearly below.
+
+---
+
+### 4.1 Version 1 — Baseline DQN
+
+**State Representation**
+- 5-dimensional state vector
+- limited environmental awareness
+
+**Neural Network**
+- smaller architecture
+- no advanced initialization
+
+**Training Configuration**
+- epochs: ~2000
+- loss: MSE
+- basic reward function
+
+**Reward (baseline)**
+```text
 reward = 5 * progress - 0.05
+```
 
-Issues Observed
-unstable convergence
-poor generalization
-reward stagnation
-high variance in Q-value updates
-5.2 Version 2 (Improved DQN System)
-State Representation
-6-dimensional state vector
-includes ray-based perception + goal direction + orientation
-Neural Network Improvements
-architecture: 6 → 128 → 128 → 128 → 64 → 3
-activation: Leaky ReLU (alpha = 0.01)
-weight initialization: Xavier initialization
-Environment Fixes
-corrected coordinate system from (x,y) indexing to (y,x) indexing
-improved spatial consistency in grid representation
-Reward Function Redesign
+**Observed Issues**
+- unstable convergence
+- poor generalization
+- reward stagnation
+- high variance in Q-value updates
 
+---
+
+### 4.2 Version 2 — Improved DQN System
+
+#### State Representation
+- 6-dimensional state vector
+- includes:
+  - ray-based perception
+  - goal direction
+  - orientation
+
+#### Neural Network Improvements
+- architecture: `6 → 128 → 128 → 128 → 64 → 3`
+- activation: Leaky ReLU (`alpha = 0.01`)
+- weight initialization: Xavier initialization
+
+#### Environment Fixes
+- corrected coordinate system issue `(x,y)` indexing to `(y,x)`
+- improved spatial consistency in grid representation
+
+#### Reward Function Redesign
+```text
 reward = 2 * progress - 0.01
 goal reward = +10
 collision reward = -10
-
-where:
 progress = old_distance - new_distance
+```
 
-Training Improvements
-epochs increased to 15000
-replay buffer size increased from 10000 to 50000
-loss function changed to Smooth L1 loss (Huber loss)
-warm-up threshold increased from 32 to 1000 samples
-Exploration Strategy
+#### Training Improvements
+- epochs increased to 15000
+- replay buffer size increased: 10000 → 50000
+- loss: Smooth L1 (Huber loss)
+- warm-up threshold increased: 32 → 1000 samples
 
-epsilon updated as:
-
+#### Exploration Strategy
+Epsilon decays as:
+```text
 epsilon = 0.999 * epsilon
+```
+with a minimum exploration bound.
 
-with minimum exploration bound applied.
+---
+
+## Suggested How-To Sections (optional, but helpful for GitHub)
+
+### Supervised Training
+Run:
+- `src/supervised/train.ipynb`
+
+Pipeline:
+- generate expert data in `src/supervised/sim.py`
+- preprocess dataset using `src/supervised/datasetprocess.ipynb`
+- train network with `src/supervised/train.ipynb`
+
+### Reinforcement Training
+Run:
+- `src/reinforcement/reinforced_train.py`
+
+Environment:
+- `src/reinforcement/gym.py` (reward + physics)
+
+Q-network:
+- `src/reinforcement/deepqnetwork.py`
+
+---
+
+## Quick Mapping: File → Purpose
+
+| File | Component | Purpose |
+|------|-----------|---------|
+| `sim.py` | Supervised | expert policy + simulator for trajectories |
+| `dataset.csv` | Data | sensor→expert action pairs |
+| `datasetprocess.ipynb` | Supervised | preprocessing + normalization |
+| `neuralnet.py` | Supervised | behavior cloning model |
+| `train.ipynb` | Supervised | train imitation model |
+| `gym.py` | RL | RL environment + reward |
+| `deepqnetwork.py` | RL | Q-network definition |
+| `reinforced_train.py` | RL | DQN training loop |
+
+---
